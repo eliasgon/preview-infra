@@ -16,10 +16,11 @@
 - ✅ **End-to-end & isolated** - each env has its own Aurora Serverless v2 cluster
   **with a reader replica**; apps write to the writer and read from the reader.
 - ✅ **Teardown** on merge/branch-delete, plus an hourly reaper for orphans.
-- ✅ **Verified**: 21 unit tests pass; `cdk synth` produces both stacks with the
-  right shape (1 cluster + 2 DB instances, 2 services, 2 host-routed rules per
-  env); the local Compose stack runs the full system with real streaming
-  replication (`replica-check` shows ~2 ms lag).
+- ✅ **Verified**: 21 unit tests pass; the local Compose stack runs the full
+  system with real streaming replication (`replica-check` ~2 ms lag); and the
+  whole thing was **deployed live to AWS** - baseline + `main` (both services
+  reachable through the ALB, replica-check confirming the Aurora reader at
+  ~300 ms lag) and an ephemeral `checkout-flow` environment alongside it.
 
 ## 1. Process, assumptions, key decisions
 
@@ -95,3 +96,10 @@ short-lived envs.
 - **Prefix-stripping for path routing** was awkward (ALB can't rewrite paths), so
   I switched to **Host-header routing**, which removed the problem entirely and
   happens to model the "header router" idea in the brief.
+- The **first live deploy rolled back** on an em-dash in a security-group
+  description (EC2 rejects non-ASCII there). Easy fix once I read the failure;
+  also a good reminder to keep generated strings plain ASCII.
+- On a fresh deploy the **app crash-looped against a still-starting Aurora**
+  cluster. The tasks recovered once the DB came up, but I made startup wait it
+  out: a bounded connection retry with backoff, plus a longer health-check grace
+  period, so a cold cluster no longer trips the deployment circuit breaker.
