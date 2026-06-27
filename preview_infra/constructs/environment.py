@@ -98,7 +98,9 @@ class PreviewEnvironment(Construct):
             listener=listener,
             app_security_group=app_sg,
             image=self._image(config, "a"),
-            environment=self._service_env(config, "service-a", env_name, a_branch, database),
+            environment=self._service_env(
+                config, "service-a", env_name, a_branch, config.a_image_tag, database
+            ),
             db_secret=database.secret,
             hostname=f"{slug}-a.{config.base_domain}",
             priority=base_priority,
@@ -115,7 +117,9 @@ class PreviewEnvironment(Construct):
             listener=listener,
             app_security_group=app_sg,
             image=self._image(config, "b"),
-            environment=self._service_env(config, "service-b", env_name, b_branch, database),
+            environment=self._service_env(
+                config, "service-b", env_name, b_branch, config.b_image_tag, database
+            ),
             db_secret=database.secret,
             hostname=f"{slug}-b.{config.base_domain}",
             priority=base_priority + 1,
@@ -141,13 +145,14 @@ class PreviewEnvironment(Construct):
         service_name: str,
         env_name: str,
         branch: str,
+        image_tag: str,
         database: ServerlessDatabase,
     ) -> dict[str, str]:
         return {
             "SERVICE_NAME": service_name,
             "ENV_NAME": env_name,
             "GIT_BRANCH": branch,
-            "GIT_SHA": config.a_image_tag if config.image_mode == "ecr" else "asset",
+            "GIT_SHA": image_tag if config.image_mode == "ecr" else "asset",
             "ROOT_PATH": "",
             "DB_WRITER_HOST": database.writer_host,
             "DB_READER_HOST": database.reader_host,
