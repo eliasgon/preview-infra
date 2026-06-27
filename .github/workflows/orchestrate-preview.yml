@@ -1,0 +1,19 @@
+name: Orchestrate preview environments
+
+# Triggered by either service repo (via repository_dispatch) whenever a branch
+# is pushed, deleted or a PR is merged. Serialized so concurrent pushes can't
+# race each other into conflicting deploys.
+
+on:
+  repository_dispatch:
+    types: [preview-sync]
+  workflow_dispatch:
+
+concurrency:
+  group: preview-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    uses: ./.github/workflows/_reconcile.yml
+    secrets: inherit

@@ -1,0 +1,40 @@
+name: Deploy baseline
+
+# Manually deploys the shared baseline (VPC, ALB, ECS cluster, ECR repos) and
+# the long-lived `main` environment. Run once to stand the platform up, and
+# again whenever baseline infrastructure changes.
+#
+# Prerequisite: both service repos' `main` images must already be in ECR
+# (push to their main branch first), since baseline runs in ecr image mode.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Deploy PreviewBaseline
+        run: |
+          npx --yes cdk deploy PreviewBaseline \
+            --require-approval never \
+            --context account="${{ vars.AWS_ACCOUNT_ID }}" \
+            --context region="${{ vars.AWS_REGION }}" \
+            --context image_mode=ecr \
+            --context cpu_arch=X86_64 \
+            --context a_image=main \
+            --context b_image=main

@@ -1,0 +1,88 @@
+name: preview-local
+
+# A faithful local mirror of an ephemeral environment:
+#   db-primary  (writer)  --streaming replication-->  db-replica (reader)
+#   service-a  writes to primary, reads from replica
+#   service-b  writes to primary, reads from replica  (shared database)
+#
+#   Service A:  http://localhost:8001
+#   Service B:  http://localhost:8002
+#
+# Usage:
+#   docker compose -f local/docker-compose.yml up --build
+#   curl localhost:8001/info | jq
+#   curl localhost:8001/replica-check | jq    # proves replication is live
+
+services:
+  db-primary:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+      POSTGRES_HOST_AUTH_METHOD: trust
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - hot_standby=on
+    volumes:
+      - ./primary-init.sh:/docker-entrypoint-initdb.d/10-replication.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  db-replica:
+    image: postgres:16
+    depends_on:
+      db-primary:
+        condition: service_healthy
+    environment:
+      PRIMARY_HOST: db-primary
+      REPL_USER: replicator
+    entrypoint: ["/usr/local/bin/replica-entrypoint.sh"]
+    volumes:
+      - ./replica/entrypoint.sh:/usr/local/bin/replica-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  service-a:
+    build: ../../preview-service-a
+    environment: &svc_env
+      SERVICE_NAME: service-a
+      ENV_NAME: local
+      GIT_BRANCH: local
+      DB_WRITER_HOST: db-primary
+      DB_READER_HOST: db-replica
+      DB_PORT: "5432"
+      DB_NAME: app
+      DB_USER: app
+      DB_PASSWORD: app
+      SEED_ON_STARTUP: "true"
+      SEED_COUNT: "5"
+    ports:
+      - "8001:8000"
+    depends_on:
+      db-replica:
+        condition: service_healthy
+
+  service-b:
+    build: ../../preview-service-b
+    environment:
+      <<: *svc_env
+      SERVICE_NAME: service-b
+    ports:
+      - "8002:8000"
+    depends_on:
+      db-replica:
+        condition: service_healthy

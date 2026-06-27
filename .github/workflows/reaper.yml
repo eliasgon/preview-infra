@@ -1,0 +1,19 @@
+name: Reap orphaned preview environments
+
+# Safety net: even if a dispatch is missed (e.g. a branch deleted while CI was
+# down), this hourly run reconciles state and tears down environments whose
+# branches no longer exist.
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: preview-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    uses: ./.github/workflows/_reconcile.yml
+    secrets: inherit

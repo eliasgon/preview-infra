@@ -1,0 +1,96 @@
+name: reconcile
+
+# Reusable workflow that converges the deployed preview environments onto the
+# desired set computed by the resolver:
+#   1. resolve  - query live branches of both repos -> desired env matrix
+#   2. deploy   - `cdk deploy` one stack per desired env (in parallel)
+#   3. prune    - delete any PreviewEnv-* stack not in the desired set
+# This single reconcile loop handles push, branch-delete and PR-merge uniformly.
+
+on:
+  workflow_call:
+
+permissions:
+  id-token: write # OIDC -> AWS
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+      slugs: ${{ steps.resolve.outputs.slugs }}
+      count: ${{ steps.resolve.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - id: resolve
+        env:
+          # Token only needed if the service repos are private.
+          GITHUB_TOKEN: ${{ secrets.REPOS_READ_TOKEN || github.token }}
+        run: |
+          uv run python -m resolver.cli --from-github \
+            --repo-a "${{ vars.SERVICE_A_REPO }}" \
+            --repo-b "${{ vars.SERVICE_B_REPO }}"
+
+  deploy:
+    needs: resolve
+    if: ${{ fromJSON(needs.resolve.outputs.count) > 0 }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.resolve.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Deploy ${{ matrix.slug }}
+        run: |
+          npx --yes cdk deploy "PreviewEnv-${{ matrix.slug }}" \
+            --exclusively --require-approval never \
+            --context account="${{ vars.AWS_ACCOUNT_ID }}" \
+            --context region="${{ vars.AWS_REGION }}" \
+            --context image_mode=ecr \
+            --context cpu_arch=X86_64 \
+            --context slug="${{ matrix.slug }}" \
+            --context group="${{ matrix.group }}" \
+            --context a_branch="${{ matrix.a_branch }}" \
+            --context b_branch="${{ matrix.b_branch }}" \
+            --context a_image="${{ matrix.a_tag }}" \
+            --context b_image="${{ matrix.b_tag }}"
+
+  prune:
+    needs: [resolve, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Destroy orphaned environments
+        env:
+          DESIRED: ${{ needs.resolve.outputs.slugs }}
+        run: |
+          existing=$(aws cloudformation list-stacks \
+            --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE ROLLBACK_COMPLETE IMPORT_COMPLETE \
+            --query "StackSummaries[?starts_with(StackName, 'PreviewEnv-')].StackName" \
+            --output text)
+          for stack in $existing; do
+            slug="${stack#PreviewEnv-}"
+            if echo "$DESIRED" | grep -q "\"${slug}\""; then
+              echo "keep  $stack"
+            else
+              echo "reap  $stack"
+              aws cloudformation delete-stack --stack-name "$stack"
+              aws cloudformation wait stack-delete-complete --stack-name "$stack" || true
+            fi
+          done
