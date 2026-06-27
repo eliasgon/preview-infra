@@ -20,7 +20,12 @@
   system with real streaming replication (`replica-check` ~2 ms lag); and the
   whole thing was **deployed live to AWS** - baseline + `main` (both services
   reachable through the ALB, replica-check confirming the Aurora reader at
-  ~300 ms lag) and an ephemeral `checkout-flow` environment alongside it.
+  ~300 ms lag) and an ephemeral `checkout-flow` environment alongside it, with a
+  record written to the ephemeral env absent from `main` (isolated databases).
+- ✅ **CI/CD proven end-to-end**: pushing a `feature/checkout-flow` branch ran
+  the service CI (test, build, push to ECR), which dispatched the orchestrator;
+  it resolved the feature group and `cdk deploy`d the environment via GitHub
+  OIDC into AWS, with no manual step.
 
 ## 1. Process, assumptions, key decisions
 
