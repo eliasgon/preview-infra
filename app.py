@@ -23,16 +23,15 @@ config = AppConfig.from_context(app)
 
 cdk.Tags.of(app).add("project", "preview-environments")
 
-baseline = BaselineStack(app, "PreviewBaseline", config=config, env=config.cdk_env)
+BaselineStack(app, "PreviewBaseline", config=config, env=config.cdk_env)
 
-# When a slug is supplied, also synthesize that one ephemeral environment. The
-# baseline is always present in the app so cross-stack references resolve.
+# When a slug is supplied, synthesize that one ephemeral environment. It imports
+# the baseline's shared resources by lookup, so the two stacks stay decoupled.
 if config.slug:
     EphemeralEnvStack(
         app,
         f"PreviewEnv-{config.slug}",
         config=config,
-        baseline=baseline,
         env=config.cdk_env,
     )
 

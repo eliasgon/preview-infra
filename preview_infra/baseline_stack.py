@@ -15,8 +15,10 @@ from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_ecr as ecr
 from aws_cdk import aws_ecs as ecs
 from aws_cdk import aws_elasticloadbalancingv2 as elbv2
+from aws_cdk import aws_ssm as ssm
 from constructs import Construct
 
+from . import config as cfg
 from .config import AppConfig
 from .constructs.environment import PreviewEnvironment
 
@@ -87,7 +89,7 @@ class BaselineStack(Stack):
         self.repo_a = ecr.Repository(
             self,
             "RepoA",
-            repository_name="preview-service-a",
+            repository_name=cfg.REPO_A_NAME,
             image_scan_on_push=True,
             removal_policy=RemovalPolicy.DESTROY,
             empty_on_delete=True,
@@ -96,7 +98,7 @@ class BaselineStack(Stack):
         self.repo_b = ecr.Repository(
             self,
             "RepoB",
-            repository_name="preview-service-b",
+            repository_name=cfg.REPO_B_NAME,
             image_scan_on_push=True,
             removal_policy=RemovalPolicy.DESTROY,
             empty_on_delete=True,
@@ -118,6 +120,36 @@ class BaselineStack(Stack):
             env_name="main",
             a_branch="main",
             b_branch="main",
+        )
+
+        # Publish shared resource IDs so ephemeral stacks can import them by
+        # lookup instead of via brittle CloudFormation exports.
+        ssm.StringParameter(
+            self, "VpcIdParam", parameter_name=cfg.SSM_VPC_ID, string_value=self.vpc.vpc_id
+        )
+        ssm.StringParameter(
+            self,
+            "ListenerArnParam",
+            parameter_name=cfg.SSM_LISTENER_ARN,
+            string_value=self.listener.listener_arn,
+        )
+        ssm.StringParameter(
+            self,
+            "AlbSgParam",
+            parameter_name=cfg.SSM_ALB_SG_ID,
+            string_value=self.alb_security_group.security_group_id,
+        )
+        ssm.StringParameter(
+            self,
+            "ClusterNameParam",
+            parameter_name=cfg.SSM_CLUSTER_NAME,
+            string_value=self.cluster.cluster_name,
+        )
+        ssm.StringParameter(
+            self,
+            "AlbDnsParam",
+            parameter_name=cfg.SSM_ALB_DNS,
+            string_value=self.alb.load_balancer_dns_name,
         )
 
         CfnOutput(self, "AlbDnsName", value=self.alb.load_balancer_dns_name)

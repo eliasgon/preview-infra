@@ -18,6 +18,18 @@ from aws_cdk import aws_ecs as ecs
 DEFAULT_SERVICE_A_PATH = "../preview-service-a"
 DEFAULT_SERVICE_B_PATH = "../preview-service-b"
 
+# Fixed ECR repository names, shared by baseline and every ephemeral stack.
+REPO_A_NAME = "preview-service-a"
+REPO_B_NAME = "preview-service-b"
+
+# The baseline publishes the IDs of its shared resources to these SSM parameters;
+# ephemeral stacks read them back so they never depend on CloudFormation exports.
+SSM_VPC_ID = "/preview/baseline/vpc-id"
+SSM_LISTENER_ARN = "/preview/baseline/listener-arn"
+SSM_ALB_SG_ID = "/preview/baseline/alb-sg-id"
+SSM_CLUSTER_NAME = "/preview/baseline/cluster-name"
+SSM_ALB_DNS = "/preview/baseline/alb-dns"
+
 
 @dataclass
 class AppConfig:
