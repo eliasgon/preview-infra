@@ -9,6 +9,12 @@ on:
     types: [preview-sync]
   workflow_dispatch:
 
+# The called workflow requests these; a caller can't grant a reusable workflow
+# more than it holds itself, so they must be declared here too.
+permissions:
+  id-token: write
+  contents: read
+
 concurrency:
   group: preview-reconcile
   cancel-in-progress: false
