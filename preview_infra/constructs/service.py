@@ -81,11 +81,13 @@ class PreviewService(Construct):
             # Fast, cheap rollouts for short-lived preview environments.
             min_healthy_percent=100,
             max_healthy_percent=200,
-            health_check_grace_period=Duration.seconds(60),
+            health_check_grace_period=Duration.seconds(120),
             # Roll back quickly if a preview build can't start, instead of
             # waiting out the (up to 3h) default failure window.
             circuit_breaker=ecs.DeploymentCircuitBreaker(rollback=True),
         )
+        # Give the app room to wait out a cold Aurora cluster on first boot
+        # before the target group starts counting failed health checks.
 
         target_group = elbv2.ApplicationTargetGroup(
             self,
