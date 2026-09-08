@@ -26,7 +26,7 @@ This is the hub repo. The two microservices it deploys live in
 ## Layout
 
 ```
-preview-infra/
+ephemeral-preview-platform/
 ├── app.py                       # CDK entrypoint
 ├── cdk.json
 ├── preview_infra/
@@ -120,11 +120,11 @@ Once the three repos are on GitHub:
 
 **On each service repo** set
 - variables: `AWS_REGION`, `ECR_REPO` (`preview-service-a` / `-b`), `INFRA_REPO`
-  (`<owner>/preview-infra`)
+  (`<owner>/ephemeral-preview-platform`)
 - secrets: `AWS_DEPLOY_ROLE_ARN` (OIDC), `INFRA_DISPATCH_TOKEN` (PAT that can
-  dispatch to `preview-infra`)
+  dispatch to `ephemeral-preview-platform`)
 
-**On `preview-infra`** set
+**On `ephemeral-preview-platform`** set
 - variables: `AWS_REGION`, `AWS_ACCOUNT_ID`, `SERVICE_A_REPO`, `SERVICE_B_REPO`
 - secrets: `AWS_DEPLOY_ROLE_ARN`, optional `REPOS_READ_TOKEN` (only if the service
   repos are private)
