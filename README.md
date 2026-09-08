@@ -1,4 +1,6 @@
-# preview-infra
+# Ephemeral Preview Platform
+
+Self-service AWS preview environment platform that provisions isolated, end-to-end environments per feature group and automatically tears them down when branches are merged or deleted.
 
 AWS CDK app + feature-group resolver + CI/CD that gives every feature group its
 own **ephemeral, end-to-end preview environment**, so feature groups can be
