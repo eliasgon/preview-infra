@@ -1,6 +1,6 @@
 # Implementation Notes
 
-> Three repos: **preview-infra** (this one - CDK, resolver, CI/CD),
+> Three repos: **ephemeral-preview-platform** (this one - CDK, resolver, CI/CD),
 > **preview-service-a**, **preview-service-b**. Start with
 > [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
