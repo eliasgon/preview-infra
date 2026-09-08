@@ -11,7 +11,7 @@ This is the hub repo. The two microservices it deploys live in
 [`preview-service-b`](../preview-service-b).
 
 👉 **Design & rationale:** [`ARCHITECTURE.md`](ARCHITECTURE.md) -
-**Submission write-up:** [`IMPLEMENTATION.md`](IMPLEMENTATION.md)
+**Implementation notes:** [`IMPLEMENTATION.md`](IMPLEMENTATION.md)
 
 ## TL;DR
 
